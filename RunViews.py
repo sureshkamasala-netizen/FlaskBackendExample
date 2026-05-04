@@ -11,7 +11,7 @@ async def play_youtube_video(browser, url, video_id):
     try:
         print(f"Instance {video_id}: Opening video...")
         await page.goto(url, wait_until="networkidle", timeout=60000)
-        await page.wait_for_selector("video", timeout=10000)
+        await page.wait_for_selector("video", timeout=60000)
         
         print(f"Instance {video_id}: Starting playback...")
         await page.keyboard.press("k")
