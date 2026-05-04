@@ -3,10 +3,19 @@ import random
 from playwright.async_api import async_playwright
 import sys
 
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+]
+
 async def play_youtube_video(browser, url, video_id):
+    user_agent = random.choice(USER_AGENTS)
     context = await browser.new_context(
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        viewport={"width": 1920, "height": 1080}
+        user_agent=user_agent,
+        viewport={"width": 1920, "height": 1080},
+        locale="en-US"
     )
     page = await context.new_page()
     await page.set_extra_http_headers({
@@ -75,11 +84,24 @@ async def run_views(video_url, instances):
             args=["--disable-blink-features=AutomationControlled"],
             ignore_default_args=["--enable-automation"]
         )
-        tasks = [play_youtube_video(browser, video_url, i) for i in range(instances)]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        for idx, result in enumerate(results):
-            if isinstance(result, Exception):
-                print(f"Instance {idx}: task failed with: {result}")
+        for i in range(instances):
+            await asyncio.sleep(random.uniform(15, 30))
+            print(f"Starting instance {i} after delay")
+            retry = 0
+            while retry < 3:
+                try:
+                    await play_youtube_video(browser, video_url, i)
+                    break
+                except Exception as exc:
+                    error_text = str(exc)
+                    print(f"Instance {i}: attempt {retry + 1} failed: {error_text}")
+                    if "HTTP 429" in error_text:
+                        backoff = 20 * (retry + 1)
+                        print(f"Instance {i}: rate limited, backing off for {backoff}s")
+                        await asyncio.sleep(backoff)
+                        retry += 1
+                        continue
+                    break
         await browser.close()
 
 if __name__ == "__main__":
